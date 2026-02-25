@@ -1,0 +1,12 @@
+pandas
+matplotlib
+scikit-learn
+opencv-python
+tensorflow
+openpyxl
+streamlit
+ultralytics
+mediapipe
+watchdog
+fastapi
+uvicorn
