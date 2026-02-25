@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GlobalStudySession } from "@/components/ui/global-study-session";
 
 interface HeaderProps {
   toggleMobileMenu: () => void;
@@ -26,11 +27,11 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
 
   const avatarInitials = user?.name
     ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2)
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2)
     : "U";
 
   return (
@@ -48,6 +49,9 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
         </div>
 
         <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 mr-2">
+            <GlobalStudySession />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center cursor-pointer">
@@ -57,8 +61,8 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
                     user?.role === "admin"
                       ? "bg-[#1976D2]"
                       : user?.role === "teacher"
-                      ? "bg-[#FF5722]"
-                      : "bg-[#4CAF50]"
+                        ? "bg-[#FF5722]"
+                        : "bg-[#4CAF50]"
                   )}
                 >
                   {avatarInitials}

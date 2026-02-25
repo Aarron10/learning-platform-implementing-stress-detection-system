@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { X, Download } from "lucide-react";
 import { Assignment } from "@shared/schema";
 import { format } from "date-fns";
-import { AIProctor } from "./ai-proctor"; // NEW IMPORT
 
 interface AssignmentViewerDialogProps {
   assignment: Assignment | null;
@@ -71,12 +70,6 @@ export function AssignmentViewerDialog({ assignment, onClose }: AssignmentViewer
               </div>
             </div>
           )}
-
-          {/* AI PROCTOR INTEGRATION */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <h3 className="text-md font-semibold text-[#2C3E50] mb-2">Smart Study Session</h3>
-            <AIProctor assignmentId={assignment.id} />
-          </div>
 
         </div>
       </DialogContent>
