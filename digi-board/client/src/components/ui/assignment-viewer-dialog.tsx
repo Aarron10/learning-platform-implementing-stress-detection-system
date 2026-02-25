@@ -63,7 +63,7 @@ export function AssignmentViewerDialog({ assignment, onClose }: AssignmentViewer
                 <Button
                   variant="outline"
                   className="bg-white border-[#1976D2]/20 text-[#1976D2] hover:bg-[#1976D2]/5"
-                  onClick={() => window.open(assignment.attachmentUrl, "_blank")}
+                  onClick={() => assignment.attachmentUrl && window.open(assignment.attachmentUrl, "_blank")}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   View/Download Attachment
