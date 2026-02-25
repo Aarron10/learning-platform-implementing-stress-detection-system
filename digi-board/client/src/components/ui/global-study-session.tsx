@@ -1,42 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, BrainCircuit, Activity, Eye, Play, Square, Coffee, Clock } from "lucide-react";
-import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
-
-const API_BASE_URL = "http://localhost:8000";
+import { useStudySession } from "@/hooks/use-study-session";
 
 export function GlobalStudySession() {
     const { user } = useAuth();
-    const [isActive, setIsActive] = useState(false);
-    const [isStarting, setIsStarting] = useState(false);
-    const [state, setState] = useState<{
-        classification: string;
-        focus: number;
-        stress: number;
-        distraction: number;
-    }>({ classification: "Offline", focus: 0, stress: 0, distraction: 0 });
 
-    // New Pause State
-    const [isPaused, setIsPaused] = useState(false);
+    // Global State
+    const {
+        isActive, isStarting, isPaused, state,
+        selectedDuration, setSelectedDuration,
+        timeRemaining, showBreakModal, setShowBreakModal,
+        handleStart, stopSession, handlePause, handleResume
+    } = useStudySession();
 
-    // Timer states
-    const [selectedDuration, setSelectedDuration] = useState<string>("30"); // Target duration in minutes
-    const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // Seconds remaining
-
-    const [showBreakModal, setShowBreakModal] = useState(false);
+    // Local UI State
     const [popoverOpen, setPopoverOpen] = useState(false);
-
-    const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-    const timerInterval = useRef<NodeJS.Timeout | null>(null);
-    const consecutiveStressTicks = useRef(0);
-    const STRESS_THRESHOLD = 0.70;
-    const REQUIRED_TICKS_FOR_BREAK = 20; // 20 ticks * 3s = 60s
-    const sessionIdRef = useRef<number | null>(null);
 
     // Format seconds into MM:SS
     const formatTime = (seconds: number) => {
@@ -44,167 +27,6 @@ export function GlobalStudySession() {
         const s = seconds % 60;
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
-
-    // 1. Start AI Proctor Session
-    const handleStart = async () => {
-        setIsStarting(true);
-        try {
-            // Tell FastAPI to start the camera and models
-            const response = await fetch(`${API_BASE_URL}/start_monitoring`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const data = await response.json();
-
-            if (data.status === "started" || data.status === "already_running") {
-                setIsActive(true);
-                setTimeRemaining(parseInt(selectedDuration) * 60);
-                toast.success("Study Session Started");
-
-                // Register session in our Digi-board DB (no assignment ID since it's global)
-                try {
-                    const sessionRes = await apiRequest("POST", "/api/study-sessions/start", {});
-                    const sessionData = await sessionRes.json();
-                    sessionIdRef.current = sessionData.id;
-                } catch (dbErr: any) {
-                    console.warn("Could not save study session start to DB, continuing anyway", dbErr);
-                    toast.error("Warning: Could not connect to database to save session progress.");
-                }
-
-                setIsPaused(false);
-                startPolling();
-                startTimer();
-                // do NOT close the popover here immediately so the user can see the timer start
-            }
-        } catch (error: any) {
-            console.error("Session Start Error Details:", error);
-            toast.error(`Error: ${error.message || "Unknown error"}. Make sure servers are running.`);
-            setIsActive(false);
-            setTimeRemaining(null);
-            // In case the camera actually started but JS threw later, force a stop!
-            fetch(`${API_BASE_URL}/stop_monitoring`, { method: 'POST' }).catch(() => { });
-        } finally {
-            setIsStarting(false);
-        }
-    };
-
-    // 4. Stop Session explicitly or on unmount or on timer end
-    const stopSession = async () => {
-        if (pollingInterval.current) clearInterval(pollingInterval.current);
-        if (timerInterval.current) clearInterval(timerInterval.current);
-
-        setIsActive(false);
-        setTimeRemaining(null);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/stop_monitoring`, { method: 'POST' });
-            const finalData = await response.json();
-
-            if (sessionIdRef.current && finalData.status === "stopped") {
-                await apiRequest("POST", `/api/study-sessions/${sessionIdRef.current}/end`, {
-                    avgFocusScore: Math.round(finalData.avg_focus * 100) || 0,
-                    avgStressScore: Math.round(finalData.avg_stress * 100) || 0,
-                });
-                toast.success("Study session saved successfully. Check your reports!");
-            }
-        } catch (e) {
-            console.error(e);
-        }
-
-        setState({ classification: "Offline", focus: 0, stress: 0, distraction: 0 });
-    };
-
-    const startTimer = () => {
-        if (timerInterval.current) clearInterval(timerInterval.current);
-
-        timerInterval.current = setInterval(() => {
-            setTimeRemaining((prev) => {
-                if (prev === null) return null;
-                if (prev <= 1) {
-                    // Timer finished
-                    stopSession();
-                    toast.success("Study session time's up!");
-                    return null;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    };
-
-    const handlePause = () => {
-        setIsPaused(true);
-        if (timerInterval.current) clearInterval(timerInterval.current);
-        if (pollingInterval.current) clearInterval(pollingInterval.current);
-        // Note: Realistically, you'd want to tell the FastAPI backend to pause camera reading too, 
-        // but for now stopping the polling saves resources in the frontend.
-    };
-
-    const handleResume = () => {
-        setIsPaused(false);
-        startTimer();
-        startPolling();
-    };
-
-    // 2. Poll the API for current state
-    const startPolling = () => {
-        if (pollingInterval.current) clearInterval(pollingInterval.current);
-
-        pollingInterval.current = setInterval(async () => {
-            // Don't poll if paused
-            if (isPaused) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/current_state`);
-                const data = await response.json();
-
-                if (data.status === "active") {
-                    const newState = {
-                        classification: data.classification,
-                        focus: data.raw_scores.focus,
-                        stress: data.raw_scores.stress,
-                        distraction: data.raw_scores.distraction
-                    };
-                    setState(newState);
-                    handleStressLogic(newState);
-
-                    // Save telemetry tick to DB
-                    if (sessionIdRef.current) {
-                        apiRequest("POST", `/api/study-sessions/${sessionIdRef.current}/telemetry`, {
-                            focusScore: Math.round(newState.focus * 100),
-                            stressScore: Math.round(newState.stress * 100),
-                            stateClassification: newState.classification
-                        }).catch(e => console.error("Telemetry error", e));
-                    }
-                }
-            } catch (error) {
-                console.error("Polling error", error);
-            }
-        }, 3000);
-    };
-
-    // 3. Logic to determine if user needs a break
-    const handleStressLogic = (currentState: any) => {
-        if (currentState.classification === "Stressed" || currentState.stress > STRESS_THRESHOLD) {
-            consecutiveStressTicks.current += 1;
-        } else {
-            consecutiveStressTicks.current = Math.max(0, consecutiveStressTicks.current - 1);
-        }
-
-        if (consecutiveStressTicks.current >= REQUIRED_TICKS_FOR_BREAK) {
-            setShowBreakModal(true);
-            consecutiveStressTicks.current = 0; // Reset
-        }
-    };
-
-    // Handle cleanup on unmount only
-    useEffect(() => {
-        return () => {
-            if (isActive) stopSession();
-            if (timerInterval.current) clearInterval(timerInterval.current);
-            if (pollingInterval.current) clearInterval(pollingInterval.current);
-        };
-    }, []); // Empty dependency array ensures this only runs on full header unmount!
 
     const getStateColor = (classification: string) => {
         switch (classification) {
@@ -338,7 +160,7 @@ export function GlobalStudySession() {
                         <Button onClick={() => {
                             setShowBreakModal(false);
                             stopSession();
-                            toast.info("Session saved. Enjoy your break!");
+                            // toast.info("Session saved. Enjoy your break!"); // Removed to avoid duplicate toasts from context
                         }} className="bg-orange-500 hover:bg-orange-600">
                             Take a Break (Stop AI)
                         </Button>

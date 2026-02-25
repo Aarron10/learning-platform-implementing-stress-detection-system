@@ -14,6 +14,7 @@ import CreateContentPage from "@/pages/create-content-page";
 import ProfilePage from "@/pages/profile-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
+import { StudySessionProvider } from "./hooks/use-study-session";
 
 function Router() {
   return (
@@ -36,10 +37,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <div className="min-h-screen bg-[#F5F7FA] text-[#2C3E50] antialiased flex flex-col">
-          <Router />
-          <Toaster />
-        </div>
+        <StudySessionProvider>
+          <div className="min-h-screen bg-[#F5F7FA] text-[#2C3E50] antialiased flex flex-col">
+            <Router />
+            <Toaster />
+          </div>
+        </StudySessionProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
