@@ -214,7 +214,8 @@ export class MemStorage implements IStorage {
       id,
       createdAt: now,
       status: insertAssignment.status ?? null,
-      classId: insertAssignment.classId ?? null
+      classId: insertAssignment.classId ?? null,
+      attachmentUrl: insertAssignment.attachmentUrl ?? null
     };
     this.assignments.set(id, assignment);
     return assignment;

@@ -163,7 +163,7 @@ class StressCalculator:
         Detects if user is looking away based on horizontal nose position relative to eyes.
         Returns True (Distracted) or False (Focused).
         """
-        try:
+        try: 
             # Nose Tip: 1
             # Left Eye Outer: 33
             # Right Eye Outer: 263

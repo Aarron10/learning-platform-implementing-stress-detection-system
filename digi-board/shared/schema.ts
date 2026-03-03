@@ -82,6 +82,7 @@ export const insertAssignmentSchema = createInsertSchema(assignments)
     teacherId: true,
     classId: true,
     status: true,
+    attachmentUrl: true,
   })
   .extend({
     dueDate: z.union([z.date(), z.string()]).transform((val) => {
