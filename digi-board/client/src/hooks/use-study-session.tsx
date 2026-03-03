@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./use-auth";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
 const API_BASE_URL = "http://localhost:8000";
@@ -32,6 +33,7 @@ const StudySessionContext = createContext<StudySessionContextType | null>(null);
 
 export function StudySessionProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
+    const [, setLocation] = useLocation();
 
     const [isActive, setIsActive] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
@@ -65,23 +67,51 @@ export function StudySessionProvider({ children }: { children: React.ReactNode }
         setTimeRemaining(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/stop_monitoring`, { method: 'POST' }).catch(() => null);
+            console.log("Stopping session, sessionIdRef:", sessionIdRef.current);
+            const response = await fetch(`${API_BASE_URL}/stop_monitoring`, { method: 'POST' }).catch((err) => {
+                console.error("Stop monitoring fetch failed", err);
+                return null;
+            });
+
+            let finalData = null;
             if (response && response.ok) {
-                const finalData = await response.json();
-                if (sessionIdRef.current && finalData.status === "stopped") {
-                    await apiRequest("POST", `/api/study-sessions/${sessionIdRef.current}/end`, {
+                finalData = await response.json();
+                console.log("Python stop_monitoring response:", finalData);
+            } else {
+                console.warn("Python stop_monitoring failed or returned error", response?.status);
+            }
+
+            if (sessionIdRef.current) {
+                const finishedId = sessionIdRef.current;
+
+                // If we got data from Python, try to save final averages to Digi-board DB
+                if (finalData && finalData.status === "stopped") {
+                    console.log("Saving final session stats to DB for session:", finishedId);
+                    await apiRequest("POST", `/api/study-sessions/${finishedId}/end`, {
                         avgFocusScore: Math.round(finalData.avg_focus * 100) || 0,
                         avgStressScore: Math.round(finalData.avg_stress * 100) || 0,
-                    }).catch(e => console.error("Telemetry error", e));
-                    toast.success("Study session saved successfully. Check your reports!");
+                    }).catch(e => console.error("Telemetry end-session error", e));
+                } else {
+                    console.warn("Skipping DB end-session update because Python status was not 'stopped'");
                 }
+
+                // ALWAYS REDIRECT if we have an ID, even if Python API had issues
+                sessionIdRef.current = null;
+                toast.success("Study session finished! Loading your report...");
+
+                console.log("Redirecting to report page:", `/reports/${finishedId}`);
+                setTimeout(() => {
+                    setLocation(`/reports/${finishedId}`);
+                }, 1000);
+            } else {
+                console.error("Cannot redirect: sessionIdRef.current is null. Did the session start correctly?");
+                toast.error("Session ended, but no database record was found to generate a report.");
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error in stopSession:", e);
         }
 
         setState({ classification: "Offline", focus: 0, stress: 0, distraction: 0 });
-        sessionIdRef.current = null;
     };
 
     const startTimer = () => {

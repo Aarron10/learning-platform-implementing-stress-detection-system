@@ -1,13 +1,15 @@
-import cv2
+import cv2 
 import asyncio
 import threading
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import time
 
 from src.logic import FaceDetector, LandmarkProcessor, StressCalculator
+from src.db import get_session_analytics
+from src.report_generator import generate_session_pdf
 
 app = FastAPI(title="Stress AI API")
 
@@ -158,6 +160,46 @@ async def stop_monitoring():
             "avg_stress": round(state.avg_stress, 3),
             "avg_focus": round(state.avg_focus, 3)
         }
+
+@app.get("/api/session_analytics/{session_id}")
+async def fetch_analytics(session_id: int):
+    """
+    Returns aggregated analytics for a specific session ID.
+    Used by the Digi-board Reporting Dashboard.
+    """
+    try:
+        analytics = get_session_analytics(session_id)
+        if not analytics:
+            raise HTTPException(status_code=404, detail="Session telemetry not found")
+        
+        # Remove raw_df from JSON response
+        if "raw_df" in analytics:
+            del analytics["raw_df"]
+            
+        return analytics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/download_report/{session_id}")
+async def download_report(session_id: int):
+    """
+    Generates and returns a downloadable PDF report.
+    """
+    try:
+        analytics = get_session_analytics(session_id)
+        if not analytics:
+            raise HTTPException(status_code=404, detail="Session telemetry not found")
+        
+        pdf_bytes = generate_session_pdf(analytics, session_id)
+        
+        filename = f"focus_report_session_{session_id}.pdf"
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        
+        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     print("Starting FastAPI Wrapper with Uvicorn...")

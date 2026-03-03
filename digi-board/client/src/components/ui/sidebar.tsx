@@ -125,17 +125,16 @@ export function Sidebar({ isMobile, showMobileMenu, setShowMobileMenu }: Sidebar
             .filter((link) => user && link.roles.includes(user.role))
             .map((link) => (
               <li key={link.path}>
-                <Link href={link.path}>
-                  <a
-                    className={cn(
-                      linkBaseClass,
-                      isActive(link.path) ? activeLinkClass : inactiveLinkClass
-                    )}
-                    onClick={closeMobileMenu}
-                  >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </a>
+                <Link
+                  href={link.path}
+                  className={cn(
+                    linkBaseClass,
+                    isActive(link.path) ? activeLinkClass : inactiveLinkClass
+                  )}
+                  onClick={closeMobileMenu}
+                >
+                  {link.icon}
+                  <span>{link.label}</span>
                 </Link>
               </li>
             ))}

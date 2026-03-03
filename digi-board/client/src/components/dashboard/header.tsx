@@ -39,12 +39,10 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between py-4">
         <div className="flex items-center">
           <MobileMenuButton onClick={toggleMobileMenu} />
-          <Link href="/">
-            <a className="flex items-center">
-              <span className="text-xl font-bold text-[#1976D2] ml-2 md:ml-0 font-['Inter']">
-                DigiBoard
-              </span>
-            </a>
+          <Link href="/" className="flex items-center">
+            <span className="text-xl font-bold text-[#1976D2] ml-2 md:ml-0 font-['Inter']">
+              DigiBoard
+            </span>
           </Link>
         </div>
 
