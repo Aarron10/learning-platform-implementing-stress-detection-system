@@ -77,13 +77,15 @@ def get_session_analytics(session_id):
     
     # Donut Chart Data (Distribution)
     distribution = {
-        "labels": ["Focused", "Stressed", "Distracted"],
+        "labels": ["Focused", "Stressed", "Distracted", "Away"],
         "values": [
             len(df[df['state_classification'] == 'Focused']),
             len(df[df['state_classification'] == 'Stressed']),
-            len(df[df['state_classification'] == 'Distracted'])
+            len(df[df['state_classification'].str.startswith('Distracted', na=False)]),
+            len(df[df['state_classification'] == 'No Face Detected'])
         ]
     }
+
     
     # 6. AI Tutor Guidance logic
     guidance = ""

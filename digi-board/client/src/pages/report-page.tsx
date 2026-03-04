@@ -99,7 +99,7 @@ export default function ReportPage() {
         datasets: [
             {
                 data: analytics.distribution.values,
-                backgroundColor: ['#4CAF50', '#F44336', '#FF9800'],
+                backgroundColor: ['#4CAF50', '#F44336', '#FF9800', '#9E9E9E'],
                 borderWidth: 0,
             }
         ],
