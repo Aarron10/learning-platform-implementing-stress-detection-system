@@ -45,6 +45,17 @@ def get_session_analytics(session_id):
     # 3. Peak Stress Time
     peak_row = df.loc[df['stress_score'].idxmax()]
     peak_stress_time = peak_row['recorded_at']
+    session_start_time = df['recorded_at'].min()
+    
+    time_offset = peak_stress_time - session_start_time
+    total_seconds = int(time_offset.total_seconds())
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+    
+    if minutes > 0:
+        formatted_peak_time = f"{minutes}m {seconds}s mark"
+    else:
+        formatted_peak_time = f"{seconds}s mark"
     
     # 4. Total Deep Work (Focused) Percentage
     # We define "Focused" as classification == 'Focused'
@@ -54,8 +65,9 @@ def get_session_analytics(session_id):
     
     # 5. Prepare Data for Chart.js
     # Time series data (recorded_at, focus, stress)
-    # Convert timestamps to string format for JSON readiness
-    df['time_str'] = df['recorded_at'].dt.strftime('%H:%M:%S')
+    # Convert timestamps to relative MM:SS format for JSON readiness
+    df['offset_seconds'] = (df['recorded_at'] - session_start_time).dt.total_seconds().astype(int)
+    df['time_str'] = df['offset_seconds'].apply(lambda s: f"{s // 60:02d}:{s % 60:02d}")
     
     timeline = {
         "labels": df['time_str'].tolist(),
@@ -87,7 +99,7 @@ def get_session_analytics(session_id):
     return {
         "avg_stress": avg_stress,
         "avg_focus": avg_focus,
-        "peak_stress_time": peak_stress_time.strftime('%H:%M:%S'),
+        "peak_stress_time": formatted_peak_time,
         "deep_work_pct": deep_work_pct,
         "timeline": timeline,
         "distribution": distribution,
