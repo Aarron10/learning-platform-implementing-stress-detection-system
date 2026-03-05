@@ -175,8 +175,10 @@ export const sessionTelemetry = pgTable("session_telemetry", {
   recordedAt: timestamp("recorded_at").notNull().defaultNow(),
   focusScore: integer("focus_score"),
   stressScore: integer("stress_score"),
+  distractedScore: integer("distracted_score"),
   stateClassification: text("state_classification"), // "Focused", "Stressed", "Distracted"
 });
+
 
 export const insertStudySessionSchema = createInsertSchema(studySessions).pick({
   userId: true,
@@ -187,6 +189,7 @@ export const insertSessionTelemetrySchema = createInsertSchema(sessionTelemetry)
   sessionId: true,
   focusScore: true,
   stressScore: true,
+  distractedScore: true,
   stateClassification: true,
 });
 

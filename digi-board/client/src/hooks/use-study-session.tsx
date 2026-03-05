@@ -169,6 +169,7 @@ export function StudySessionProvider({ children }: { children: React.ReactNode }
                         apiRequest("POST", `/api/study-sessions/${sessionIdRef.current}/telemetry`, {
                             focusScore: Math.round(newState.focus * 100),
                             stressScore: Math.round(newState.stress * 100),
+                            distractedScore: Math.round(newState.distraction * 100),
                             stateClassification: newState.classification
                         }).catch(e => console.error("Telemetry error", e));
                     }

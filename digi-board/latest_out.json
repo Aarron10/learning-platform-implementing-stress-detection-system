@@ -1,0 +1,22 @@
+{
+  "id": 545,
+  "session_id": 19,
+  "timestamp": "2026-03-04T09:04:16.929Z",
+  "focus_score": 90,
+  "stress_score": 0,
+  "distraction_score": null,
+  "recorded_at": "2026-03-04T09:04:16.929Z",
+  "state_classification": "Focused",
+  "distracted_score": 0
+}
+{
+  "id": 466,
+  "session_id": 18,
+  "timestamp": "2026-03-04T08:35:12.621Z",
+  "focus_score": 0,
+  "stress_score": 0,
+  "distraction_score": null,
+  "recorded_at": "2026-03-04T03:05:12.616Z",
+  "state_classification": "No Face Detected",
+  "distracted_score": null
+}

@@ -611,6 +611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sessionId,
         focusScore: req.body.focusScore,
         stressScore: req.body.stressScore,
+        distractedScore: req.body.distractedScore,
         stateClassification: req.body.stateClassification,
         recordedAt: new Date()
       };
