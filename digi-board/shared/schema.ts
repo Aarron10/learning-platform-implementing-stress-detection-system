@@ -32,6 +32,8 @@ export const assignments = pgTable("assignments", {
   classId: text("class_id"),
   status: text("status").default("active"),
   attachmentUrl: text("attachment_url"),
+  weightage: integer("weightage").default(1),
+  priority: text("priority").default("medium"),
 });
 
 export const materials = pgTable("materials", {
@@ -83,6 +85,8 @@ export const insertAssignmentSchema = createInsertSchema(assignments)
     classId: true,
     status: true,
     attachmentUrl: true,
+    weightage: true,
+    priority: true,
   })
   .extend({
     dueDate: z.union([z.date(), z.string()]).transform((val) => {

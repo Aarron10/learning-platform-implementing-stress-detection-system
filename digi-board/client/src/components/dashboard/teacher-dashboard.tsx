@@ -8,30 +8,24 @@ import { format } from "date-fns";
 import { Link } from "wouter";
 import { PlusIcon, CheckIcon, AlertCircleIcon, VideoIcon } from "lucide-react";
 import { DashboardCardSkeleton, AssignmentSkeleton, AnnouncementSkeleton } from "@/components/ui/content-skeletons";
+import { AssignmentViewerDialog } from "@/components/ui/assignment-viewer-dialog";
 
 export function TeacherDashboard() {
   const { user } = useAuth();
-  const [pendingAssignments, setPendingAssignments] = useState<Assignment[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [viewingAssignment, setViewingAssignment] = useState<Assignment | null>(null);
 
   // Fetch assignments
   const { data: assignments, isLoading: assignmentsLoading } = useQuery<Assignment[]>({
     queryKey: ["/api/assignments"],
-    onSuccess: (data) => {
-      // Filter assignments that need grading
-      const pending = data || [];
-      setPendingAssignments(pending.slice(0, 5));
-    },
   });
+
+  const recentAssignments = assignments
+    ? [...assignments].sort((a, b) => new Date(b.createdAt || new Date()).getTime() - new Date(a.createdAt || new Date()).getTime()).slice(0, 5)
+    : [];
 
   // Fetch announcements
   const { data: announcements, isLoading: announcementsLoading } = useQuery<Announcement[]>({
     queryKey: ["/api/announcements"],
-  });
-
-  // Fetch events
-  const { data: events, isLoading: eventsLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
   });
 
   // Determine due date status
@@ -84,8 +78,11 @@ export function TeacherDashboard() {
     {
       key: "actions",
       header: "Actions",
-      cell: (_assignment: Assignment) => (
-        <button className="text-[#1976D2] hover:text-[#1976D2]/80 font-medium">
+      cell: (assignment: Assignment) => (
+        <button
+          className="text-[#1976D2] hover:text-[#1976D2]/80 font-medium"
+          onClick={() => setViewingAssignment(assignment)}
+        >
           View
         </button>
       ),
@@ -154,30 +151,6 @@ export function TeacherDashboard() {
     },
   ];
 
-  // Format upcoming events from API data
-  const upcomingEvents = events
-    ? events
-        .filter((event) => new Date(event.startDate) > new Date())
-        .sort((a, b) => 
-          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-        )
-        .slice(0, 3)
-        .map((event) => ({
-          ...event,
-          month: format(new Date(event.startDate), "MMM"),
-          day: format(new Date(event.startDate), "d"),
-          time: `${format(new Date(event.startDate), "h:mm a")} - ${format(new Date(event.endDate), "h:mm a")}`,
-          isImportant: event.important,
-          tags: [
-            { label: event.location || "TBD", type: "info" },
-            { 
-              label: event.important ? "Important" : "Optional", 
-              type: event.important ? "warning" : "info" 
-            }
-          ]
-        }))
-    : [];
-
   return (
     <div id="teacher-dashboard" className="pb-16">
       <div className="mb-6">
@@ -191,7 +164,7 @@ export function TeacherDashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {assignmentsLoading || announcementsLoading || eventsLoading ? (
+        {assignmentsLoading || announcementsLoading ? (
           <>
             <DashboardCardSkeleton variant="primary" />
             <DashboardCardSkeleton variant="secondary" />
@@ -211,9 +184,9 @@ export function TeacherDashboard() {
       </div>
 
       {/* Recent Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="w-full mb-6">
         {/* Pending Assignments */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           <ContentCard
             title="Recent Assignments"
             action={{
@@ -222,7 +195,7 @@ export function TeacherDashboard() {
             }}
           >
             <DataTable
-              data={pendingAssignments || []}
+              data={recentAssignments}
               columns={assignmentColumns}
               emptyState={
                 assignmentsLoading ? (
@@ -238,83 +211,6 @@ export function TeacherDashboard() {
                 )
               }
             />
-          </ContentCard>
-        </div>
-
-        {/* Upcoming Events */}
-        <div>
-          <ContentCard
-            title="Upcoming Events"
-            action={{
-              label: "View Calendar",
-              onClick: () => window.location.href = "/schedule",
-            }}
-          >
-            {eventsLoading ? (
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3 animate-pulse">
-                  <div className="bg-gray-200 rounded-md p-2 text-center min-w-[60px]">
-                    <div className="h-4 w-8 bg-gray-300 mb-1 mx-auto rounded"></div>
-                    <div className="h-6 w-6 bg-gray-300 mx-auto rounded"></div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-4 w-24 bg-gray-300 mb-2 rounded"></div>
-                    <div className="h-3 w-32 bg-gray-200 mb-2 rounded"></div>
-                    <div className="flex gap-2">
-                      <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                      <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 animate-pulse">
-                  <div className="bg-gray-200 rounded-md p-2 text-center min-w-[60px]">
-                    <div className="h-4 w-8 bg-gray-300 mb-1 mx-auto rounded"></div>
-                    <div className="h-6 w-6 bg-gray-300 mx-auto rounded"></div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-4 w-24 bg-gray-300 mb-2 rounded"></div>
-                    <div className="h-3 w-32 bg-gray-200 mb-2 rounded"></div>
-                    <div className="flex gap-2">
-                      <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                      <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : upcomingEvents.length === 0 ? (
-              <div className="flex flex-col items-center p-6">
-                <CalendarIcon className="h-12 w-12 text-[#1976D2]/30 mb-2" />
-                <p className="text-[#2C3E50]/70">No upcoming events</p>
-                <Link href="/create">
-                  <a className="mt-2 text-[#1976D2] hover:underline">Create one</a>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {upcomingEvents.map((event, i) => (
-                  <div key={i} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                    <div className={`${event.isImportant ? 'bg-[#FF5722]/10' : 'bg-[#1976D2]/10'} rounded-md p-2 text-center min-w-[60px]`}>
-                      <span className={`block text-sm ${event.isImportant ? 'text-[#FF5722]' : 'text-[#1976D2]'} font-medium`}>{event.month}</span>
-                      <span className={`block text-xl font-bold ${event.isImportant ? 'text-[#FF5722]' : 'text-[#1976D2]'}`}>{event.day}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-[#2C3E50]">{event.title}</h4>
-                      <p className="text-sm text-[#2C3E50]/70">{event.time}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {event.tags.map((tag, tagIndex) => (
-                          <span 
-                            key={tagIndex} 
-                            className={`text-xs ${tag.type === 'warning' ? 'bg-[#FF5722]/10 text-[#FF5722]' : 'bg-gray-100 text-[#2C3E50]/80'} px-2 py-1 rounded-full`}
-                          >
-                            {tag.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </ContentCard>
         </div>
       </div>
@@ -409,27 +305,12 @@ export function TeacherDashboard() {
           )}
         </ContentCard>
       </div>
-    </div>
-  );
-}
 
-function CalendarIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
+      <AssignmentViewerDialog
+        assignment={viewingAssignment}
+        onClose={() => setViewingAssignment(null)}
+      />
+    </div>
   );
 }
 

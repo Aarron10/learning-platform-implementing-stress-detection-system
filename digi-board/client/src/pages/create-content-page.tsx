@@ -121,6 +121,8 @@ export default function CreateContentPage() {
     dueTime: z.string().min(1, "Due time is required"),
     classId: z.string().optional(),
     status: z.string().optional(),
+    weightage: z.string().optional(),
+    priority: z.string().optional(),
     fileUpload: z.instanceof(File).optional(),
   });
 
@@ -186,6 +188,8 @@ export default function CreateContentPage() {
       description: "",
       classId: "",
       status: "active",
+      weightage: "1",
+      priority: "medium",
       dueTime: "23:59",
       dueDate: new Date(), // Set default to current date
       fileUpload: undefined,
@@ -279,6 +283,14 @@ export default function CreateContentPage() {
 
       if (values.classId) {
         formData.append("classId", values.classId);
+      }
+
+      if (values.weightage) {
+        formData.append("weightage", values.weightage);
+      }
+
+      if (values.priority) {
+        formData.append("priority", values.priority);
       }
 
       if (values.fileUpload) {
@@ -824,6 +836,60 @@ export default function CreateContentPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={assignmentForm.control}
+                        name="weightage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Weightage</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select weightage" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="1">1</SelectItem>
+                                <SelectItem value="2">2</SelectItem>
+                                <SelectItem value="3">3</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              The weight/importance of this assignment
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={assignmentForm.control}
+                        name="priority"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Priority</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              The priority level of this assignment
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={assignmentForm.control}
                         name="dueDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
@@ -915,7 +981,6 @@ export default function CreateContentPage() {
                                   const file = e.target.files?.[0];
                                   if (file) onChange(file);
                                 }}
-                                {...fieldProps}
                               />
                             </div>
                           </FormControl>

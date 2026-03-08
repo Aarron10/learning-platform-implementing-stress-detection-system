@@ -11,6 +11,10 @@ import { db, pool } from "./db";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
@@ -57,6 +61,8 @@ export interface IStorage {
   createStudySession(session: any): Promise<any>;
   updateStudySession(id: number, data: any): Promise<any>;
   addSessionTelemetry(telemetry: any): Promise<any>;
+  getStudySessionsByUser(userId: number): Promise<any[]>;
+  getAllStudySessions(): Promise<any[]>;
 
   // Session store
   sessionStore: any; // Store type for the session
@@ -215,7 +221,9 @@ export class MemStorage implements IStorage {
       createdAt: now,
       status: insertAssignment.status ?? null,
       classId: insertAssignment.classId ?? null,
-      attachmentUrl: insertAssignment.attachmentUrl ?? null
+      attachmentUrl: insertAssignment.attachmentUrl ?? null,
+      weightage: insertAssignment.weightage ?? null,
+      priority: insertAssignment.priority ?? null
     };
     this.assignments.set(id, assignment);
     return assignment;
@@ -335,6 +343,14 @@ export class MemStorage implements IStorage {
 
   async addSessionTelemetry(telemetryData: any): Promise<any> {
     return { ...telemetryData, id: 999 };
+  }
+
+  async getStudySessionsByUser(userId: number): Promise<any[]> {
+    return []; // Mock implementation
+  }
+
+  async getAllStudySessions(): Promise<any[]> {
+    return []; // Mock implementation
   }
 }
 
@@ -574,6 +590,16 @@ export class DatabaseStorage implements IStorage {
     const { sessionTelemetry } = await import("@shared/schema");
     const result = await this.db.insert(sessionTelemetry).values(telemetryData).returning();
     return result[0];
+  }
+
+  async getStudySessionsByUser(userId: number): Promise<any[]> {
+    const { studySessions } = await import("@shared/schema");
+    return this.db.select().from(studySessions).where(eq(studySessions.userId, userId));
+  }
+
+  async getAllStudySessions(): Promise<any[]> {
+    const { studySessions } = await import("@shared/schema");
+    return this.db.select().from(studySessions);
   }
 }
 

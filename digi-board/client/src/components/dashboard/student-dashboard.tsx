@@ -4,9 +4,9 @@ import { DashboardCard, ContentCard } from "@/components/ui/dashboard-card";
 import { Assignment, Announcement, Material, Event } from "@shared/schema";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { 
-  Clock, 
-  FileText, 
+import {
+  Clock,
+  FileText,
   AlertCircle,
   BookOpen,
   Calendar,
@@ -31,34 +31,22 @@ export function StudentDashboard() {
     queryKey: ["/api/materials"],
   });
 
-  // Fetch events
-  const { data: events, isLoading: eventsLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
-  });
-
   // Filter assignments to get upcoming ones
   const upcomingAssignments = assignments
     ? assignments
-        .filter((assignment) => new Date(assignment.dueDate) > new Date())
-        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-        .slice(0, 3)
+      .filter((assignment) => new Date(assignment.dueDate) > new Date())
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 3)
     : [];
 
   // Get important announcements
   const importantAnnouncements = announcements
     ? announcements
-        .filter((announcement) => announcement.important)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 3)
+      .filter((announcement) => announcement.important)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 3)
     : [];
 
-  // Get upcoming events
-  const upcomingEvents = events
-    ? events
-        .filter((event) => new Date(event.startDate) > new Date())
-        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-        .slice(0, 3)
-    : [];
 
   // Quick access cards
   const quickAccessCards = [
@@ -78,14 +66,6 @@ export function StudentDashboard() {
       color: "bg-[#4CAF50]/10",
       textColor: "text-[#4CAF50]",
     },
-    {
-      title: "Events",
-      icon: <Calendar className="h-8 w-8 text-[#FF5722] mb-2" />,
-      count: events?.length || 0,
-      link: "/schedule",
-      color: "bg-[#FF5722]/10",
-      textColor: "text-[#FF5722]",
-    },
   ];
 
   return (
@@ -104,7 +84,7 @@ export function StudentDashboard() {
       </div>
 
       {/* Quick Access */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {quickAccessCards.map((card, i) => (
           <Link key={i} href={card.link}>
             <a className="block">
@@ -221,60 +201,9 @@ export function StudentDashboard() {
       </div>
 
       {/* More Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Upcoming Events */}
-        <ContentCard
-          title="Upcoming Events"
-          action={{
-            label: "View Calendar",
-            onClick: () => window.location.href = "/schedule",
-          }}
-        >
-          {eventsLoading ? (
-            <div className="flex justify-center p-4">Loading events...</div>
-          ) : upcomingEvents.length === 0 ? (
-            <div className="flex flex-col items-center p-6">
-              <Calendar className="h-12 w-12 text-[#4CAF50]/30 mb-2" />
-              <p className="text-[#2C3E50]/70">No upcoming events</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {upcomingEvents.map((event, i) => (
-                <div key={i} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                  <div className={`${event.important ? 'bg-[#FF5722]/10' : 'bg-[#4CAF50]/10'} rounded-md p-2 text-center min-w-[60px]`}>
-                    <span className={`block text-sm ${event.important ? 'text-[#FF5722]' : 'text-[#4CAF50]'} font-medium`}>
-                      {format(new Date(event.startDate), "MMM")}
-                    </span>
-                    <span className={`block text-xl font-bold ${event.important ? 'text-[#FF5722]' : 'text-[#4CAF50]'}`}>
-                      {format(new Date(event.startDate), "d")}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#2C3E50]">{event.title}</h4>
-                    <p className="text-sm text-[#2C3E50]/70">
-                      {format(new Date(event.startDate), "h:mm a")} - {format(new Date(event.endDate), "h:mm a")}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {event.location && (
-                        <span className="text-xs bg-gray-100 text-[#2C3E50]/80 px-2 py-1 rounded-full">
-                          {event.location}
-                        </span>
-                      )}
-                      {event.important && (
-                        <span className="text-xs bg-[#FF5722]/10 text-[#FF5722] px-2 py-1 rounded-full">
-                          Important
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </ContentCard>
-
+      <div className="w-full mt-6">
         {/* Recent Materials */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           <ContentCard
             title="Recent Study Materials"
             action={{

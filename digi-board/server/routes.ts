@@ -83,6 +83,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/assignments", upload.single("file"), async (req, res, next) => {
     try {
+      console.log("[DEBUG] /api/assignments route hit:");
+      console.log(" - req.file:", req.file);
+
       // Check authentication
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -111,6 +114,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         teacherId: user.id,
         status: req.body.status || "active",
         attachmentUrl: attachmentUrl, // Include the file URL if it was uploaded
+        weightage: req.body.weightage ? parseInt(req.body.weightage) : undefined,
+        priority: req.body.priority || undefined,
       });
 
       // Create the assignment
@@ -607,6 +612,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.sendStatus(401);
 
       const sessionId = parseInt(req.params.id);
+      if (isNaN(sessionId)) return res.status(400).json({ error: "Invalid session ID" });
+
       const telemetryData = {
         sessionId,
         focusScore: req.body.focusScore,
@@ -628,6 +635,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.sendStatus(401);
 
       const sessionId = parseInt(req.params.id);
+      if (isNaN(sessionId)) return res.status(400).json({ error: "Invalid session ID" });
+
       const updateData = {
         endedAt: new Date(),
         avgFocusScore: req.body.avgFocusScore,
@@ -635,11 +644,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avgDistractedScore: req.body.avgDistractedScore || 0
       };
 
-      // We don't have duration calculation logic here in minimal implementation, 
-      // but you could add date-fns difference logic here.
-
       const studySession = await storage.updateStudySession(sessionId, updateData);
       res.status(200).json(studySession);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/study-sessions/student", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as Express.User;
+
+      // We will need a storage method for this, so just mapping to it now
+      if (typeof (storage as any).getStudySessionsByUser === 'function') {
+        const sessions = await (storage as any).getStudySessionsByUser(user.id);
+        res.json(sessions);
+      } else {
+        res.status(501).json({ error: "Method not implemented in storage yet" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/study-sessions/all", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as Express.User;
+
+      if (user.role !== "teacher" && user.role !== "admin") {
+        return res.status(403).json({ error: "Unauthorized role" });
+      }
+
+      if (typeof (storage as any).getAllStudySessions === 'function') {
+        const sessions = await (storage as any).getAllStudySessions();
+        res.json(sessions);
+      } else {
+        res.status(501).json({ error: "Method not implemented in storage yet" });
+      }
     } catch (error) {
       next(error);
     }

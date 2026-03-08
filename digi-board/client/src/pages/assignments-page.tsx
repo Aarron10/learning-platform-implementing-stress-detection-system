@@ -181,6 +181,20 @@ export default function AssignmentsPage() {
       },
     },
     {
+      key: "details",
+      header: "Details",
+      cell: (assignment: Assignment) => (
+        <div className="flex gap-2 mt-1">
+          <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded capitalize">
+            {assignment.priority || "medium"} Priority
+          </span>
+          <span className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded">
+            Weight: {assignment.weightage || 1}
+          </span>
+        </div>
+      ),
+    },
+    {
       key: "status",
       header: "Status",
       cell: (assignment: Assignment) => {
@@ -246,6 +260,20 @@ export default function AssignmentsPage() {
           </div>
         );
       },
+    },
+    {
+      key: "details",
+      header: "Details",
+      cell: (assignment: Assignment) => (
+        <div className="flex gap-2 mt-1">
+          <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded capitalize">
+            {assignment.priority || "medium"} Priority
+          </span>
+          <span className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded">
+            Weight: {assignment.weightage || 1}
+          </span>
+        </div>
+      ),
     },
     {
       key: "actions",
