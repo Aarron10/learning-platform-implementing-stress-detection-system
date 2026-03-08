@@ -12,7 +12,6 @@ import SchedulePage from "@/pages/schedule-page";
 import UserManagementPage from "@/pages/user-management-page";
 import CreateContentPage from "@/pages/create-content-page";
 import ProfilePage from "@/pages/profile-page";
-import ReportPage from "@/pages/report-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { StudySessionProvider } from "./hooks/use-study-session";
@@ -29,7 +28,6 @@ function Router() {
       <ProtectedRoute path="/users" component={UserManagementPage} />
       <ProtectedRoute path="/create" component={CreateContentPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
-      <ProtectedRoute path="/reports/:id" component={ReportPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -6,7 +6,7 @@ import { events, type Event, type InsertEvent } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
-import { eq } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { db, pool } from "./db";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import path from "path";
@@ -62,6 +62,7 @@ export interface IStorage {
   updateStudySession(id: number, data: any): Promise<any>;
   addSessionTelemetry(telemetry: any): Promise<any>;
   getStudySessionsByUser(userId: number): Promise<any[]>;
+  getRecentStudySessionsByUser(userId: number, since: Date): Promise<any[]>;
   getAllStudySessions(): Promise<any[]>;
 
   // Session store
@@ -349,6 +350,10 @@ export class MemStorage implements IStorage {
     return []; // Mock implementation
   }
 
+  async getRecentStudySessionsByUser(userId: number, since: Date): Promise<any[]> {
+    return []; // Mock implementation
+  }
+
   async getAllStudySessions(): Promise<any[]> {
     return []; // Mock implementation
   }
@@ -595,6 +600,16 @@ export class DatabaseStorage implements IStorage {
   async getStudySessionsByUser(userId: number): Promise<any[]> {
     const { studySessions } = await import("@shared/schema");
     return this.db.select().from(studySessions).where(eq(studySessions.userId, userId));
+  }
+
+  async getRecentStudySessionsByUser(userId: number, since: Date): Promise<any[]> {
+    const { studySessions } = await import("@shared/schema");
+    return this.db.select().from(studySessions).where(
+      and(
+        eq(studySessions.userId, userId),
+        gte(studySessions.startedAt, since)
+      )
+    );
   }
 
   async getAllStudySessions(): Promise<any[]> {

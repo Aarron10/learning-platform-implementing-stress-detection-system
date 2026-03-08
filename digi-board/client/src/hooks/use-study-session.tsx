@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useAuth } from "./use-auth";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { ReportDialog } from "@/components/ui/report-dialog";
 
 const API_BASE_URL = "http://localhost:8000";
 
@@ -50,6 +51,10 @@ export function StudySessionProvider({ children }: { children: React.ReactNode }
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [showBreakModal, setShowBreakModal] = useState(false);
 
+    // Add Report Dialog states
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportSessionId, setReportSessionId] = useState<number | null>(null);
+
     const pollingInterval = useRef<NodeJS.Timeout | null>(null);
     const timerInterval = useRef<NodeJS.Timeout | null>(null);
     const consecutiveStressTicks = useRef(0);
@@ -95,14 +100,11 @@ export function StudySessionProvider({ children }: { children: React.ReactNode }
                     console.warn("Skipping DB end-session update because Python status was not 'stopped'");
                 }
 
-                // ALWAYS REDIRECT if we have an ID, even if Python API had issues
+                // Open Report Dialog Modal instead of redirecting
                 sessionIdRef.current = null;
+                setReportSessionId(finishedId);
+                setIsReportOpen(true);
                 toast.success("Study session finished! Loading your report...");
-
-                console.log("Redirecting to report page:", `/reports/${finishedId}`);
-                setTimeout(() => {
-                    setLocation(`/reports/${finishedId}`);
-                }, 1000);
             } else {
                 console.error("Cannot redirect: sessionIdRef.current is null. Did the session start correctly?");
                 toast.error("Session ended, but no database record was found to generate a report.");
@@ -242,6 +244,12 @@ export function StudySessionProvider({ children }: { children: React.ReactNode }
             handleStart, stopSession, handlePause, handleResume
         }}>
             {children}
+            {/* Mount Report Dialog at the root context level so it's globally available */}
+            <ReportDialog
+                open={isReportOpen}
+                onOpenChange={setIsReportOpen}
+                sessionId={reportSessionId}
+            />
         </StudySessionContext.Provider>
     );
 }

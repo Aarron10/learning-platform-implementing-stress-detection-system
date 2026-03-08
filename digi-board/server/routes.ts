@@ -688,6 +688,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/recommended-workload", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as Express.User;
+
+      // 1. Calculate 48-hour window
+      const fortyEightHoursAgo = new Date();
+      fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
+      // 2. Fetch recent study sessions
+      let recentSessions: any[] = [];
+      if (typeof (storage as any).getRecentStudySessionsByUser === 'function') {
+        recentSessions = await (storage as any).getRecentStudySessionsByUser(user.id, fortyEightHoursAgo);
+      }
+
+      // 3. Calculate 2-Day Avg Stress
+      let avgStress = 0;
+      if (recentSessions.length > 0) {
+        // sessions store avgStressScore as an integer (e.g., 85 instead of 0.85)
+        const totalStress = recentSessions.reduce((acc, sum) => acc + (sum.avgStressScore || 0), 0);
+        const avgScore = totalStress / recentSessions.length;
+        avgStress = avgScore / 100; // normalize back to 0.0 - 1.0
+      }
+
+      // 4. Calculate Capacity
+      // Capacity = 100 - (Avg_2Day_Stress * 75)
+      let capacity = 100 - Math.round(avgStress * 75);
+      // Ensure capacity stays within 0-100 range
+      capacity = Math.max(0, Math.min(100, capacity));
+
+      // Determine modes
+      let mode = "Normal Mode";
+      let trend = "Stable";
+      if (avgStress > 0.6) {
+        mode = "Immediate Recovery Mode";
+        trend = "Trending Up"; // Stress trending up
+      } else if (avgStress < 0.3 && recentSessions.length > 0) { // Require at least one session to be 'Peak'
+        mode = "Peak Performance";
+        trend = "Trending Down"; // Stress trending down
+      }
+
+      // 5. Fetch user's assignments
+      let allAssignments = await storage.getAllAssignments();
+      // Students should only see active assignments, we map over them
+      // Note: Ideally query by classId, but keeping it simple based on existing structure
+      let tasks = allAssignments.filter(a => new Date(a.dueDate) > new Date());
+
+      // 6. Apply Workload Engine Logic
+      let recommendedTasks = [...tasks];
+
+      if (mode === "Immediate Recovery Mode") {
+        // Hide Weight 3 tasks and High priority items
+        recommendedTasks = tasks.filter(t => t.weightage !== 3 && t.priority?.toLowerCase() !== 'high');
+        // Sort to prioritize Weight 1 tasks first
+        recommendedTasks.sort((a, b) => {
+          if (a.weightage === 1 && b.weightage !== 1) return -1;
+          if (a.weightage !== 1 && b.weightage === 1) return 1;
+          return 0; // fallback to natural order
+        });
+      } else if (mode === "Peak Performance") {
+        // Prioritize Weight 3 and High Priority
+        recommendedTasks.sort((a, b) => {
+          let scoreA = (a.weightage === 3 ? 2 : 0) + (a.priority?.toLowerCase() === 'high' ? 2 : 0);
+          let scoreB = (b.weightage === 3 ? 2 : 0) + (b.priority?.toLowerCase() === 'high' ? 2 : 0);
+          return scoreB - scoreA;
+        });
+      } else {
+        // Normal Mode: Order by Due Date
+        recommendedTasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      }
+
+      // Return top 5 maximum to not overwhelm
+      recommendedTasks = recommendedTasks.slice(0, 5);
+
+      res.json({
+        mode,
+        capacity,
+        trend,
+        recentSessionsCount: recentSessions.length,
+        avgStress,
+        recommendedTasks
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

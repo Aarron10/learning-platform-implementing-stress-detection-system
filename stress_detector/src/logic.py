@@ -102,6 +102,9 @@ class StressCalculator:
         self.baseline_ratio = 1.0
         self.baseline_bs = {}
         
+        # New: Tracking sustained High Stress
+        self.high_stress_seconds = 0.0
+        
     def calibrate(self, landmarks, blendshapes):
         """
         Captures the current state as the 'resting' baseline.
@@ -192,13 +195,15 @@ class StressCalculator:
         except:
             return False
 
-    def calculate_hybrid_score(self, face_crop, blendshapes, landmarks=None):
+    def calculate_hybrid_score(self, face_crop, blendshapes, landmarks=None, delta_time=0.0, session_duration_minutes=30):
         """
         Calculates hybrid score with Smoothing, optimization, and blink detection.
         Arguments:
             face_crop (img): Face image for Keras model
             blendshapes (list): MediaPipe blendshapes
             landmarks (list, optional): MediaPipe landmarks for Blink/HeadPose detection
+            delta_time (float): Time passed since last frame in seconds
+            session_duration_minutes (int): Selected duration
         """
         # --- 1. Geometric Score (MediaPipe) ---
         bs_map = {b.category_name: b.score for b in blendshapes}
@@ -322,34 +327,67 @@ class StressCalculator:
             raw_distraction = eye_distraction
             if distraction_source == "None": distraction_source = "Eye Gaze"
 
-        # 2. Logic: On-Screen vs Off-Screen
-        # We define "On-Screen" as raw_distraction < threshold
+        # Logic: On-Screen vs Off-Screen
+        # We consider OFF-SCREEN if head_distraction is 1.0 (completely tilted away) 
+        # or eye_distraction is high, OR eyes look away significantly.
+        
         on_screen_threshold = 0.35
         
-        if raw_distraction < on_screen_threshold:
-            # ON SCREEN: Force Max Focus, Zero Distraction
+        if head_distraction == 1.0 or eye_distraction >= 0.6:
+            # COMPLETELY OFF SCREEN OR LOOKING AWAY: Aggressive compounded penalty
+            # Instead of snapping to 0 instantly, we drop it massively based on delta_time
+            # For instance, 40-50% drop per second of looking away
+            penalty_per_second = 0.50 # 50% drop per second
+            
+            # The focus logic was doing this based on the existing formula which was 1.0 down, 
+            # now we'll fetch the LAST focus score from the buffer and penalize it
+            if len(self.score_buffer) > 0:
+                last_focus = self.score_buffer[-1][1]
+            else:
+                last_focus = 1.0
+                
+            final_focused = max(0.0, last_focus - (penalty_per_second * delta_time))
+            final_distracted = min(1.0, 1.0 - final_focused) # inverse
+            
+            # Stress is irrelevant if looking away/off screen
+            final_stress = ((vis_stress * 0.6) + (geo_stress * 0.4)) * 0.3
+            distraction_source = "Off Screen or Looking Away"
+            
+        elif raw_distraction < on_screen_threshold:
+            # ON SCREEN AND FOCUSED
             final_focused = 1.0
             final_distracted = 0.0
-            # Stress is purely visual but dampened
             final_stress = ((vis_stress * 0.7) + (geo_stress * 0.3)) * 0.60
             distraction_source = "None (On Screen)"
         else:
-            # OFF SCREEN: Scale linearly/exponentially
-            # Map 0.35 -> 1.0 range to 0.0 -> 1.0 output
-            # (val - min) / (max - min)
+            # PARTIALLY DISTRACTED: Scale linearly
             scale = (raw_distraction - on_screen_threshold) / (1.0 - on_screen_threshold)
             scale = min(1.0, max(0.0, scale))
             
-            # Linear ramp up of distraction
             final_distracted = scale 
-            
-            # Inverse ramp down of focus, but punish harder (User req)
-            # "focused score to lower more when eyes are away"
-            # If scale is 0.5 (halfway distracted), focus was 0.25, now 0.1
-            final_focused = max(0.0, 1.0 - (scale * 2.0)) # Steeper drop off
-            
-            # Stress is unreliable if looking away
+            # Drop focus heavier
+            final_focused = max(0.0, 1.0 - (scale * 2.5)) 
             final_stress = ((vis_stress * 0.6) + (geo_stress * 0.4)) * (1.0 - scale)
+
+        # -- HIGH STRESS ESCALATION LOGIC --
+        if final_stress >= 0.45:
+            self.high_stress_seconds += delta_time
+        else:
+            self.high_stress_seconds = 0.0 # reset if they calm down below 45%
+
+        # Calculate user's threshold based on timer
+        ref_duration_minutes = min(session_duration_minutes, 30.0) # Cap at 30 min rules
+        threshold_seconds = (ref_duration_minutes / 5.0) * 60.0 # 1/5th of time in seconds
+        
+        # Scale: 2% per min if 10m timer, 1% per min if 30m timer
+        # Linear map: at 10=2.0, at 30=1.0  => Y = mX + c => m = (1.0 - 2.0)/(30-10) = -0.05
+        # rate = 2.0 - 0.05 * (ref_duration - 10)
+        penalty_rate_per_minute = 2.0 - 0.05 * (ref_duration_minutes - 10.0)
+        
+        if self.high_stress_seconds > threshold_seconds:
+            extra_minutes = (self.high_stress_seconds - threshold_seconds) / 60.0
+            stress_penalty = extra_minutes * (penalty_rate_per_minute / 100.0)
+            final_stress += stress_penalty
 
         # Clip
         final_stress = min(1.0, max(0.0, final_stress))

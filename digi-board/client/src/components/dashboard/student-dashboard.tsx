@@ -10,7 +10,11 @@ import {
   AlertCircle,
   BookOpen,
   Calendar,
-  PlusIcon
+  PlusIcon,
+  TrendingUp,
+  TrendingDown,
+  BrainCircuit,
+  BatteryCharging
 } from "lucide-react";
 
 export function StudentDashboard() {
@@ -31,13 +35,19 @@ export function StudentDashboard() {
     queryKey: ["/api/materials"],
   });
 
-  // Filter assignments to get upcoming ones
-  const upcomingAssignments = assignments
-    ? assignments
-      .filter((assignment) => new Date(assignment.dueDate) > new Date())
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-      .slice(0, 3)
-    : [];
+  // Fetch adaptive workload recommendations
+  const { data: workloadData, isLoading: workloadLoading } = useQuery<{
+    mode: string;
+    capacity: number;
+    trend: string;
+    recentSessionsCount: number;
+    avgStress: number;
+    recommendedTasks: Assignment[];
+  }>({
+    queryKey: ["/api/recommended-workload"],
+  });
+
+  const upcomingAssignments = workloadData?.recommendedTasks || [];
 
   // Get important announcements
   const importantAnnouncements = announcements
@@ -104,51 +114,95 @@ export function StudentDashboard() {
 
       {/* Content Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Assignments */}
+        {/* Adaptive Workload Assignments */}
         <ContentCard
-          title="Upcoming Assignments"
+          title="Adaptive Workload"
           action={{
-            label: "View All",
+            label: "All Assignments",
             onClick: () => window.location.href = "/assignments",
           }}
         >
-          {assignmentsLoading ? (
-            <div className="flex justify-center p-4">Loading assignments...</div>
-          ) : upcomingAssignments.length === 0 ? (
-            <div className="flex flex-col items-center p-6">
-              <FileText className="h-12 w-12 text-[#1976D2]/30 mb-2" />
-              <p className="text-[#2C3E50]/70">No upcoming assignments</p>
-            </div>
+          {workloadLoading ? (
+            <div className="flex justify-center p-4">Analyzing workload...</div>
           ) : (
             <div className="space-y-4">
-              {upcomingAssignments.map((assignment, i) => (
-                <div key={i} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                  <div className="bg-[#1976D2]/10 rounded-md p-2 text-center min-w-[60px]">
-                    <Clock className="h-5 w-5 text-[#1976D2] mx-auto" />
-                    <span className="block text-sm text-[#1976D2] font-medium mt-1">
-                      {format(new Date(assignment.dueDate), "MMM d")}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#2C3E50]">{assignment.title}</h4>
-                    <p className="text-sm text-[#2C3E50]/70">
-                      {assignment.description.length > 60
-                        ? `${assignment.description.substring(0, 60)}...`
-                        : assignment.description}
-                    </p>
-                    <div className="mt-2 flex space-x-2">
-                      {assignment.classId && (
-                        <span className="text-xs bg-gray-100 text-[#2C3E50]/80 px-2 py-1 rounded-full">
-                          {assignment.classId}
-                        </span>
+              {/* Capacity Status Bar */}
+              {workloadData && (
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center space-x-2">
+                      <BrainCircuit className="h-5 w-5 text-[#673AB7]" />
+                      <span className="font-semibold text-[#2C3E50] text-sm">{workloadData.mode}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-xs font-medium">
+                      {workloadData.trend === "Trending Up" ? (
+                        <span className="text-red-500 flex items-center"><TrendingUp className="h-3 w-3 mr-1" /> Stress Trend</span>
+                      ) : workloadData.trend === "Trending Down" ? (
+                        <span className="text-green-500 flex items-center"><TrendingDown className="h-3 w-3 mr-1" /> Stress Trend</span>
+                      ) : (
+                        <span className="text-gray-500">Stable</span>
                       )}
-                      <span className="text-xs bg-[#1976D2]/10 text-[#1976D2] px-2 py-1 rounded-full">
-                        Due {format(new Date(assignment.dueDate), "MMM d, h:mm a")}
-                      </span>
                     </div>
                   </div>
+
+                  <div className="flex items-center space-x-3">
+                    <BatteryCharging className={`h-6 w-6 ${workloadData.capacity < 30 ? 'text-red-500' : workloadData.capacity > 70 ? 'text-green-500' : 'text-yellow-500'}`} />
+                    <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${workloadData.capacity < 30 ? 'bg-red-500' : workloadData.capacity > 70 ? 'bg-green-500' : 'bg-yellow-500'}`}
+                        style={{ width: `${workloadData.capacity}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs font-bold w-10 text-right">{workloadData.capacity}%</span>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {upcomingAssignments.length === 0 ? (
+                <div className="flex flex-col items-center p-6">
+                  <FileText className="h-12 w-12 text-[#1976D2]/30 mb-2" />
+                  <p className="text-[#2C3E50]/70">No tasks currently assigned</p>
+                </div>
+              ) : (
+                upcomingAssignments.map((assignment, i) => (
+                  <div key={i} className={`flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0 ${workloadData?.mode === 'Immediate Recovery Mode' && assignment.weightage === 1 ? 'bg-green-50/50 p-2 rounded-md' : ''}`}>
+                    <div className="bg-[#1976D2]/10 rounded-md p-2 text-center min-w-[60px]">
+                      <Clock className="h-5 w-5 text-[#1976D2] mx-auto" />
+                      <span className="block text-sm text-[#1976D2] font-medium mt-1">
+                        {format(new Date(assignment.dueDate), "MMM d")}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-[#2C3E50]">{assignment.title}</h4>
+                      <p className="text-sm text-[#2C3E50]/70">
+                        {assignment.description.length > 60
+                          ? `${assignment.description.substring(0, 60)}...`
+                          : assignment.description}
+                      </p>
+                      <div className="mt-2 flex space-x-2 flex-wrap gap-y-2">
+                        {assignment.classId && (
+                          <span className="text-xs bg-gray-100 text-[#2C3E50]/80 px-2 py-1 rounded-full">
+                            {assignment.classId}
+                          </span>
+                        )}
+                        <span className="text-xs bg-[#1976D2]/10 text-[#1976D2] px-2 py-1 rounded-full">
+                          Due {format(new Date(assignment.dueDate), "MMM d, h:mm a")}
+                        </span>
+                        {workloadData?.mode === "Immediate Recovery Mode" && assignment.weightage === 1 && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                            Recommended (Low Effort)
+                          </span>
+                        )}
+                        {workloadData?.mode === "Peak Performance" && (assignment.weightage === 3 || assignment.priority === 'high') && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold">
+                            High Value Task
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </ContentCard>

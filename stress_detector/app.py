@@ -84,7 +84,11 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 cap = cv2.VideoCapture(0)
 
 try:
+    last_frame_time = time.time()
     while True:
+        current_time = time.time()
+        delta_time = current_time - last_frame_time
+        last_frame_time = current_time
         if not st.session_state['run']:
             frame_placeholder.info("Session Stopped. Press Start to begin.")
             # Release camera if stopped to save resources/avoid conflict
@@ -140,7 +144,7 @@ try:
                         landmarks = results.face_landmarks[0]
                         
                         # Hybrid Calculation
-                        scores = stress_calc.calculate_hybrid_score(face_crop, blendshapes, landmarks)
+                        scores = stress_calc.calculate_hybrid_score(face_crop, blendshapes, landmarks, delta_time, duration)
                         current_stress = scores['stress_score']
                         current_focus = scores['focused_score']
                         current_distracted = scores['distracted_score']
