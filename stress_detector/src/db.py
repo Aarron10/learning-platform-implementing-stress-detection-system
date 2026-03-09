@@ -75,12 +75,10 @@ def get_session_analytics(session_id):
         "stress_data": df['stress_score'].tolist()
     }
     
-    # Donut Chart Data (Distribution)
     distribution = {
-        "labels": ["Focused", "Stressed", "Distracted", "Away"],
+        "labels": ["Focused", "Distracted", "Away"],
         "values": [
             len(df[df['state_classification'] == 'Focused']),
-            len(df[df['state_classification'] == 'Stressed']),
             len(df[df['state_classification'].str.startswith('Distracted', na=False)]),
             len(df[df['state_classification'] == 'No Face Detected'])
         ]

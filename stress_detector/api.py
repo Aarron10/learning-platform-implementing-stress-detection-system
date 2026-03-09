@@ -87,9 +87,17 @@ def processing_loop():
                     else:
                         classification = "Focused"
                         
-                    # Handle "looking away" override
-                    if scores['details'].get('looking_away', False):
-                        classification = "Distracted (Looking Away)"
+                    # Handle "looking away" override based on logic.py's distraction_source
+                    source = scores['details'].get('distraction_source', 'None')
+                    if source not in ["None", "None (On Screen)"]:
+                        if current_distracted > current_focus:
+                            classification = f"Distracted ({source})"
+                else:
+                    # YOLO found face/head, but MediaPipe couldn't find landmarks (eyes obscured or head turned totally away)
+                    current_distracted = 1.0
+                    current_focus = 0.0
+                    current_stress = 0.0
+                    classification = "Distracted (Head Turned Away)"
 
         # Update global state safely
         with state.lock:

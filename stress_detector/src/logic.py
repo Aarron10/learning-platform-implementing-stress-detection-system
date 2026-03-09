@@ -304,9 +304,28 @@ class StressCalculator:
         vis_distracted = 0.0
         
         if emotions:
+            # Base variables
             vis_stress = emotions['Angry'] + emotions['Disgusted'] + emotions['Fearful'] + emotions['Sad']
-            vis_focused = emotions['Neutral']
+            base_neutral = emotions.get('Neutral', 0.0)
             vis_distracted = emotions['Happy'] + emotions['Surprised']
+
+            # Suppression-Aware Logic (CASME II 'repression' mapped to Neutral)
+            # If geometric physical tension is reasonably high (> 0.25), then high Neutral might actually be Repression
+            if base_neutral > 0.3 and geo_stress > 0.25:
+                # Shift a portion of Neutral into Repression (Stress) based on the severity of physical tension
+                repression_factor = min(1.0, geo_stress * 1.5)
+                repression_score = base_neutral * repression_factor
+                vis_stress += repression_score
+                vis_focused = base_neutral - repression_score
+            else:
+                vis_focused = base_neutral
+                
+            # Normalize to ensure they sum perfectly to 1.0
+            total = vis_stress + vis_focused + vis_distracted
+            if total > 0:
+                vis_stress /= total
+                vis_focused /= total
+                vis_distracted /= total
 
         # --- 4. Fusion & Tuning ---
         # User Priority: "focused score 100% when looking anywhere on screen, distracted 0"
@@ -336,8 +355,7 @@ class StressCalculator:
         if head_distraction == 1.0 or eye_distraction >= 0.6:
             # COMPLETELY OFF SCREEN OR LOOKING AWAY: Aggressive compounded penalty
             # Instead of snapping to 0 instantly, we drop it massively based on delta_time
-            # For instance, 40-50% drop per second of looking away
-            penalty_per_second = 0.50 # 50% drop per second
+            penalty_per_second = 2.0 # 200% drop per second (0.5s to reach 0)
             
             # The focus logic was doing this based on the existing formula which was 1.0 down, 
             # now we'll fetch the LAST focus score from the buffer and penalize it
@@ -357,7 +375,7 @@ class StressCalculator:
             # ON SCREEN AND FOCUSED
             final_focused = 1.0
             final_distracted = 0.0
-            final_stress = ((vis_stress * 0.7) + (geo_stress * 0.3)) * 0.60
+            final_stress = (vis_stress * 0.7) + (geo_stress * 0.3)
             distraction_source = "None (On Screen)"
         else:
             # PARTIALLY DISTRACTED: Scale linearly
@@ -367,7 +385,7 @@ class StressCalculator:
             final_distracted = scale 
             # Drop focus heavier
             final_focused = max(0.0, 1.0 - (scale * 2.5)) 
-            final_stress = ((vis_stress * 0.6) + (geo_stress * 0.4)) * (1.0 - scale)
+            final_stress = (vis_stress * 0.6) + (geo_stress * 0.4)
 
         # -- HIGH STRESS ESCALATION LOGIC --
         if final_stress >= 0.45:
